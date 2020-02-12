@@ -84,6 +84,13 @@ Servo servo_left;
 Servo servo_right;
 int servo_left_ctr = 90;
 int servo_right_ctr = 90;
+int headingDegrees;
+int s1;
+int s2;
+ 
+int random1;
+int random2;
+
 
 int16_t max_mx = -1000;
 int16_t min_mx = 1000;
@@ -207,7 +214,6 @@ void setup() {
   Serial.print (count, DEC);
   Serial.println (" device(s).");
 
-  delay(3000);
 
 
 
@@ -232,6 +238,8 @@ void setup() {
 }
 long int cpt=0;
 
+
+  
 void loop() {
     wsLoop();
     httpLoop();
@@ -269,6 +277,8 @@ void loop() {
   int16_t mx=(Mag[1]<<8 | Mag[0]);
   int16_t my=(Mag[3]<<8 | Mag[2]);
   //int16_t mz=(Mag[5]<<8 | Mag[4]);
+  
+ 
 
   if (max_mx < mx)
     max_mx = mx;
@@ -294,7 +304,7 @@ void loop() {
   mx_calib = mx_calib * scale_x;
   my_calib = my_calib * scale_y; 
 
-  Serial.print(max_mx);
+ /* Serial.print(max_mx);
   Serial.print("\t");
   Serial.print(min_mx);
   Serial.print("\t");
@@ -308,7 +318,7 @@ void loop() {
   Serial.print("\t");
   Serial.print(mx_calib);
   Serial.print("\t");
-  Serial.println(my_calib);
+  Serial.println(my_calib); */
 
   // swap the values (due to hardware mismatch)
   float heading = atan2(-mx_calib, my_calib);
@@ -330,7 +340,7 @@ void loop() {
     heading -= 2*PI;
 
   // Convert radians to degrees for readability.
-  float headingDegrees = heading * 180/PI; 
+   headingDegrees = (heading * 180/PI); 
 //
 //  Serial.print("\rHeading:\t");
 //  Serial.print(heading);
@@ -339,23 +349,23 @@ void loop() {
 //  Serial.print(",");
 //  Serial.println(" Degrees   \t");
 
-  Serial.print ("Magnetometer readings:"); 
-  Serial.print ("\tMx:");
-  Serial.print (mx); 
-  Serial.print(",");
-  Serial.print ("\tMy:");
-  Serial.print (my);
+ //Serial.print ("Magnetometer readings:"); 
+//Serial.print ("\tMx:");
+  //Serial.print (mx); 
+  //Serial.print(",");
+  //Serial.print ("\tMy:");
+  //Serial.print (my);
 //  Serial.print ("\tMz:");
 //  Serial.print (mz);  
-  Serial.println("\tHeading:");
-  Serial.print(heading);
-  Serial.println("\tHeading Degrees:");
+  //Serial.println("\tHeading:");
+  //Serial.print(heading);
+  Serial.print("Degrees:");
   Serial.print(headingDegrees);
-  Serial.println ("\t");
-  Serial.print("\n");
-  
-  
-  // End of line
+ Serial.println ("\t");
+  //Serial.print("\n");  
+// End of line
+
+
   delay(100); 
 
 
@@ -363,35 +373,24 @@ void loop() {
 
   Serial.print("Lidar 1 range(mm): ");
   Serial.print(sensor.readRangeSingleMillimeters());
+  Serial.println ("\t");
   if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
+  
   
   Serial.print("  Lidar 2 range(mm): ");
   Serial.println(sensor2.readRangeSingleMillimeters());
-  if (sensor.timeoutOccurred()) { Serial.println(" TIMEOUT"); }
-
+  Serial.println ("\t");
+  if (sensor.timeoutOccurred()) { Serial.println(" TIMEOUT"); } 
+  delay(1000);
   
 //self drive
-/*if(sensor.readRangeSingleMillimeters()>260){
 
-backward();
-  
-}
 
-if((sensor.readRangeSingleMillimeters()<=260)&&(sensor2.readRangeSingleMillimeters()<=160)){
-
-do{
-  right();
-}
-  while(mx>-180&&my<60);
-
-  backward();
-}
-
-*/
 
 
 
 }
+
 
 
 //
@@ -399,6 +398,7 @@ do{
 //
 
 void drive(int left, int right) {
+   
   servo_left.write(left);
   servo_right.write(right);
 }
@@ -447,6 +447,10 @@ void setupPins() {
     servo_left.attach(SERVO_LEFT);
     servo_right.attach(SERVO_RIGHT);
     DEBUG("Setup motor pins");
+       delay(2000);
+       right();
+  delay(500);
+
 }
 
 void webSocketEvent(uint8_t id, WStype_t type, uint8_t * payload, size_t length) {
@@ -484,22 +488,51 @@ void webSocketEvent(uint8_t id, WStype_t type, uint8_t * payload, size_t length)
             //wsSend(1, sensor.readRangeSingleMillimeters())
            // wsSend(2, sensor2.readRangeSingleMillimeters())
             //wsSend(id, "Hello world!")
+                random1=random(181);
+                    random2=random(181);
             
             if (payload[0] == '#') {
                 if(payload[1] == 'C') {
                   LED_ON;
                   //string stringl1 ;
                   //char* l1 = (char*)sensor.readRangeSingleMillimeters();
-                  wsSend(id, "hi");
+                  //wsSend(id, "hi");
+
+
+                    
                   
+                    s1=sensor.readRangeSingleMillimeters();
+                     s2=sensor2.readRangeSingleMillimeters();
+                   
+                   
+
+                    
+                  
+                       char tx[30] = "Zero @ (xxx, xxx, xxx)";
+                  sprintf(tx, "Zero @ (%3d, %3d, %3d)", headingDegrees, s1, s2);
+                  wsSend(id, tx);
+
+                  
+              
+
+             
                   
                 }
+                  
+                
                 else if(payload[1] == 'F') 
-                  backward();
+
+                {
+                    
+                  drive(random1,random2);
+                  delay(2000);
                   //Serial.print("ours:");
                  // Serial.print( sensor.readRangeSingleMillimeters());
-                else if(payload[1] == 'B') 
-                  forward();
+            }else if(payload[1] == 'B') 
+            {
+               forward();
+            }
+                  
                 else if(payload[1] == 'L') 
                   right();
                 else if(payload[1] == 'R') 
