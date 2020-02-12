@@ -284,7 +284,7 @@ void loop() {
   int16_t mx_calib = (mx - (max_mx + min_mx)/2);
   int16_t my_calib = (my - (max_my + min_my)/2);
  
-  
+  // arasshhhhhhhhhhhhhhhhhhhhhhhhhhh
   // calculate the scaling
   int16_t avg_mx = (max_mx - min_mx)/2;
   int16_t avg_my = (max_my - min_my)/2;
