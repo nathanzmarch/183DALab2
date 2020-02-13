@@ -1,12 +1,12 @@
 /*
   Wireless Servo Control, with ESP as Access Point
 
-  Usage: 
+  Usage:
     Connect phone or laptop to "ESP_XXXX" wireless network, where XXXX is the ID of the robot
-    Go to 192.168.4.1. 
+    Go to 192.168.4.1.
     A webpage with four buttons should appear. Click them to move the robot.
 
-  Installation: 
+  Installation:
     In Arduino, go to Tools > ESP8266 Sketch Data Upload to upload the files from ./data to the ESP
     Then, in Arduino, compile and upload sketch to the ESP
 
@@ -18,16 +18,16 @@
     Websockets library
       To install, Sketch > Include Library > Manage Libraries... > Websockets > Install
       https://github.com/Links2004/arduinoWebSockets
-    
+
     ESP8266FS tool
-      To install, create "tools" folder in Arduino, download, and unzip. See 
+      To install, create "tools" folder in Arduino, download, and unzip. See
       https://github.com/esp8266/Arduino/blob/master/doc/filesystem.md#uploading-files-to-file-system
 
-  Hardware: 
+  Hardware:
   * NodeMCU Amica DevKit Board (ESP8266 chip)
-  * Motorshield for NodeMCU 
+  * Motorshield for NodeMCU
   * 2 continuous rotation servos plugged into motorshield pins D1, D2
-  * Ultra-thin power bank 
+  * Ultra-thin power bank
   * Paper chassis
 
 */
@@ -54,12 +54,12 @@
 #define    MPU9250_ADDRESS            0x68
 #define    MAG_ADDRESS                0x0C
 
-#define    GYRO_FULL_SCALE_250_DPS    0x00  
+#define    GYRO_FULL_SCALE_250_DPS    0x00
 #define    GYRO_FULL_SCALE_500_DPS    0x08
 #define    GYRO_FULL_SCALE_1000_DPS   0x10
 #define    GYRO_FULL_SCALE_2000_DPS   0x18
 
-#define    ACC_FULL_SCALE_2_G        0x00  
+#define    ACC_FULL_SCALE_2_G        0x00
 #define    ACC_FULL_SCALE_4_G        0x08
 #define    ACC_FULL_SCALE_8_G        0x10
 #define    ACC_FULL_SCALE_16_G       0x18
@@ -77,6 +77,9 @@
 VL53L0X sensor;
 VL53L0X sensor2;
 
+uint8_t id_comm;
+uint8_t pwmL = 0;
+uint8_t pwmR = 0;
 
 const int SERVO_LEFT = D1;
 const int SERVO_RIGHT = D2;
@@ -87,7 +90,7 @@ int servo_right_ctr = 90;
 int headingDegrees;
 int s1;
 int s2;
- 
+
 int random1;
 int random2;
 
@@ -102,9 +105,9 @@ char ap_ssid[13];
 char* ap_password = "";
 
 // WiFi STA parameters
-char* sta_ssid = 
+char* sta_ssid =
   "...";
-char* sta_password = 
+char* sta_password =
   "...";
 
 char* mDNS_name = "paperbot";
@@ -119,9 +122,9 @@ void I2Cread(uint8_t Address, uint8_t Register, uint8_t Nbytes, uint8_t* Data)
   Wire.beginTransmission(Address);
   Wire.write(Register);
   Wire.endTransmission();
-  
+
   // Read Nbytes
-  Wire.requestFrom(Address, Nbytes); 
+  Wire.requestFrom(Address, Nbytes);
   uint8_t index=0;
   while (Wire.available())
     Data[index++]=Wire.read();
@@ -158,7 +161,7 @@ void setup() {
 
   // Set by pass mode for the magnetometers
   I2CwriteByte(MPU9250_ADDRESS,0x37,0x02);
-  
+
   // Request first magnetometer single measurement
   I2CwriteByte(MAG_ADDRESS,0x0A,0x01);
 
@@ -175,7 +178,7 @@ void setup() {
   digitalWrite(D3, HIGH);
   delay(150);
   Serial.println("00");
-  
+
   sensor.init(true);
   Serial.println("01");
   delay(100);
@@ -190,7 +193,7 @@ void setup() {
   Serial.println("04");
 
   Serial.println("addresses set");
-  
+
   Serial.println ("I2C scanner. Scanning ...");
   byte count = 0;
 
@@ -217,7 +220,7 @@ void setup() {
 
 
 
-  
+
     }
     LED_ON;
     //setupSTA(sta_ssid, sta_password);
@@ -239,7 +242,7 @@ void setup() {
 long int cpt=0;
 
 
-  
+
 void loop() {
     wsLoop();
     httpLoop();
@@ -247,19 +250,19 @@ void loop() {
 
     // _______________
   // ::: Counter :::
-  
+
   // Display data counter
   Serial.print (cpt++,DEC);
   Serial.print ("\t");
-  
+
   // _____________________
-  // :::  Magnetometer ::: 
+  // :::  Magnetometer :::
 
   // Request first magnetometer single measurement
   I2CwriteByte(MAG_ADDRESS,0x0A,0x01);
-  
+
   // Read register Status 1 and wait for the DRDY: Data Ready
-  
+
   uint8_t ST1;
   do
   {
@@ -267,18 +270,18 @@ void loop() {
   }
   while (!(ST1&0x01));
 
-  // Read magnetometer data  
-  uint8_t Mag[7];  
+  // Read magnetometer data
+  uint8_t Mag[7];
   I2Cread(MAG_ADDRESS,0x03,7,Mag);
 
   // Create 16 bits values from 8 bits data
-  
+
   // Magnetometer
   int16_t mx=(Mag[1]<<8 | Mag[0]);
   int16_t my=(Mag[3]<<8 | Mag[2]);
   //int16_t mz=(Mag[5]<<8 | Mag[4]);
-  
- 
+
+
 
   if (max_mx < mx)
     max_mx = mx;
@@ -293,16 +296,16 @@ void loop() {
   // subtracts the offsets
   int16_t mx_calib = (mx - (max_mx + min_mx)/2);
   int16_t my_calib = (my - (max_my + min_my)/2);
- 
+
   // arasshhhhhhhhhhhhhhhhhhhhhhhhhhh
   // calculate the scaling
   int16_t avg_mx = (max_mx - min_mx)/2;
   int16_t avg_my = (max_my - min_my)/2;
   float avg_delta = (avg_mx + avg_my) / 2.0;
   float scale_x = avg_delta / avg_mx;
-  float scale_y = avg_delta / avg_my;  
+  float scale_y = avg_delta / avg_my;
   mx_calib = mx_calib * scale_x;
-  my_calib = my_calib * scale_y; 
+  my_calib = my_calib * scale_y;
 
  /* Serial.print(max_mx);
   Serial.print("\t");
@@ -324,9 +327,9 @@ void loop() {
   float heading = atan2(-mx_calib, my_calib);
 
   // Once you have your heading, you must then add your 'Declination Angle',
-  // which is the 'Error' of the magnetic field in your location. Mine is 0.0404 
+  // which is the 'Error' of the magnetic field in your location. Mine is 0.0404
   // Find yours here: http://www.magnetic-declination.com/
-  
+
   // If you cannot find your Declination, comment out these two lines, your compass will be slightly off.
 //  float declinationAngle = 0.0404;
 //  heading += declinationAngle;
@@ -340,7 +343,7 @@ void loop() {
     heading -= 2*PI;
 
   // Convert radians to degrees for readability.
-   headingDegrees = (heading * 180/PI); 
+   headingDegrees = (heading * 180/PI);
 //
 //  Serial.print("\rHeading:\t");
 //  Serial.print(heading);
@@ -349,24 +352,27 @@ void loop() {
 //  Serial.print(",");
 //  Serial.println(" Degrees   \t");
 
- //Serial.print ("Magnetometer readings:"); 
+ //Serial.print ("Magnetometer readings:");
 //Serial.print ("\tMx:");
-  //Serial.print (mx); 
+  //Serial.print (mx);
   //Serial.print(",");
   //Serial.print ("\tMy:");
   //Serial.print (my);
 //  Serial.print ("\tMz:");
-//  Serial.print (mz);  
+//  Serial.print (mz);
   //Serial.println("\tHeading:");
   //Serial.print(heading);
   Serial.print("Degrees:");
   Serial.print(headingDegrees);
  Serial.println ("\t");
-  //Serial.print("\n");  
+  //Serial.print("\n");
 // End of line
 
-
-  delay(100); 
+  char tx[30] = "Zero @ (xxx, xxx, xxx)";
+  sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+  sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+  wsSend(id_comm, tx);
+  delay(100);
 
 
 // sensors
@@ -375,14 +381,14 @@ void loop() {
   Serial.print(sensor.readRangeSingleMillimeters());
   Serial.println ("\t");
   if (sensor.timeoutOccurred()) { Serial.print(" TIMEOUT"); }
-  
-  
+
+
   Serial.print("  Lidar 2 range(mm): ");
   Serial.println(sensor2.readRangeSingleMillimeters());
   Serial.println ("\t");
-  if (sensor.timeoutOccurred()) { Serial.println(" TIMEOUT"); } 
+  if (sensor.timeoutOccurred()) { Serial.println(" TIMEOUT"); }
   delay(1000);
-  
+
 //self drive
 
 
@@ -398,7 +404,7 @@ void loop() {
 //
 
 void drive(int left, int right) {
-   
+
   servo_left.write(left);
   servo_right.write(right);
 }
@@ -459,7 +465,7 @@ void webSocketEvent(uint8_t id, WStype_t type, uint8_t * payload, size_t length)
         case WStype_DISCONNECTED:
             DEBUG("Web socket disconnected, id = ", id);
             break;
-        case WStype_CONNECTED: 
+        case WStype_CONNECTED:
         {
             // IPAddress ip = webSocket.remoteIP(id);
             // Serial.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", id, ip[0], ip[1], ip[2], ip[3], payload);
@@ -476,86 +482,266 @@ void webSocketEvent(uint8_t id, WStype_t type, uint8_t * payload, size_t length)
             for (int i = 0; i < length; i++)
               DEBUG("    char : ", payload[i]);
 
-            if (payload[0] == '~') 
+            if (payload[0] == '~')
               drive(180-payload[1], payload[2]);
 
         case WStype_TEXT:
             DEBUG("On connection #", id)
             DEBUG("  got text: ", (char *)payload);
 
-           
+
             //our code
             //wsSend(1, sensor.readRangeSingleMillimeters())
            // wsSend(2, sensor2.readRangeSingleMillimeters())
             //wsSend(id, "Hello world!")
                 random1=random(181);
                     random2=random(181);
-            
+
             if (payload[0] == '#') {
-                if(payload[1] == 'C') {
+              //If we hit the script button execute our script and send measurements to the website
+              if(payload[1] == 'S' ){
+              pwmL = 0;
+              pwmR = 90;
+              drive(pwmL, pwmR);
+              char tx[30] = "Zero @ (xxx, xxx, xxx)";
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmL = 45;
+              pwmR = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmL = 135;
+              pwmR = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmL = 180;
+              pwmR = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmR = 0;
+              pwmL = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmR = 45;
+              pwmL = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmR = 135;
+              pwmL = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              pwmR = 180;
+              pwmL = 90;
+              drive(pwmL, pwmR);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+              delay(2000);
+              sprintf(tx, "%3d, %3d, %3d, %3d, %3d", headingDegrees,
+              sensor.readRangeSingleMillimeters(), sensor2.readRangeSingleMillimeters(), pwmL, pwmR);
+              wsSend(id_comm, tx);
+            }
+               else if(payload[1] == 'C') {
                   LED_ON;
                   //string stringl1 ;
                   //char* l1 = (char*)sensor.readRangeSingleMillimeters();
                   //wsSend(id, "hi");
 
 
-                    
-                  
+
+
                     s1=sensor.readRangeSingleMillimeters();
                      s2=sensor2.readRangeSingleMillimeters();
-                   
-                   
 
-                    
-                  
-                       char tx[30] = "Zero @ (xxx, xxx, xxx)";
-                  sprintf(tx, "Zero @ (%3d, %3d, %3d)", headingDegrees, s1, s2);
+
+
+
+
+                  char tx[30] = "Zero @ (xxx, xxx, xxx)";
+                  sprintf(tx, "%3d, %3d, %3d", headingDegrees, s1, s2);
                   wsSend(id, tx);
 
-                  
-              
 
-             
-                  
+
+
+
+
                 }
-                  
-                
-                else if(payload[1] == 'F') 
+
+
+                else if(payload[1] == 'F')
 
                 {
-                    
+
                   drive(random1,random2);
                   delay(2000);
                   //Serial.print("ours:");
                  // Serial.print( sensor.readRangeSingleMillimeters());
-            }else if(payload[1] == 'B') 
+            }else if(payload[1] == 'B')
             {
                forward();
             }
-                  
-                else if(payload[1] == 'L') 
+
+                else if(payload[1] == 'L')
                   right();
-                else if(payload[1] == 'R') 
+                else if(payload[1] == 'R')
                   left();
                 else if(payload[1] == 'U') {
-                  if(payload[2] == 'L') 
+                  if(payload[2] == 'L')
                     servo_left_ctr -= 1;
-                  else if(payload[2] == 'R') 
+                  else if(payload[2] == 'R')
                     servo_right_ctr += 1;
                   char tx[20] = "Zero @ (xxx, xxx)";
                   sprintf(tx, "Zero @ (%3d, %3d)", servo_left_ctr, servo_right_ctr);
                   wsSend(id, tx);
                 }
                 else if(payload[1] == 'D') {
-                  if(payload[2] == 'L') 
+                  if(payload[2] == 'L')
                     servo_left_ctr += 1;
-                  else if(payload[2] == 'R') 
+                  else if(payload[2] == 'R')
                     servo_right_ctr -= 1;
                   char tx[20] = "Zero @ (xxx, xxx)";
                   sprintf(tx, "Zero @ (%3d, %3d)", servo_left_ctr, servo_right_ctr);
                   wsSend(id, tx);
                 }
-                else 
+                else
                   stop();
             }
 

@@ -41,7 +41,8 @@
       </td>
     </tr>
   </table>
-
+  <!--This button allows us to send predefine scripts to our car through wifi and sends back sensor data-->
+  <button id="script"   name="bt" value="SC" class="button">Script</button>
   <table class=wslog> <tr>
       <td width="50%" valign="top">
         <div id="wsRx" class="log"></div>
@@ -115,7 +116,7 @@
     connection.onopen = function(){
       var timeStr = new Date().toLocaleTimeString();
       var text = "(" + timeStr + ") : CONNECTED <br>";
-      connection.send('Connect ' + new Date()); 
+      connection.send('Connect ' + new Date());
       txLog(text);
     };
     connection.onerror = function(error){
@@ -152,7 +153,7 @@
       var text = "(" + timeStr + ") : TX = #" + val + "<br>";
       txLog(text);
 
-      console.log('Button pressed, sending #'+val); 
+      console.log('Button pressed, sending #'+val);
       connection.send('#'+val);
     }
 
@@ -164,7 +165,7 @@
       ltSlider.value = 90;
       rtSlider.value = 90;
 
-      console.log('Button released'); 
+      console.log('Button released');
       connection.send('#0');
     }
 
